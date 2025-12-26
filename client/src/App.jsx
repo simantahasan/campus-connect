@@ -11,6 +11,10 @@ import Profile from './pages/Profile';
 import Chat from './pages/Chat';
 import Messages from './pages/Messages';
 import Materials from './pages/Materials';
+import Groups from './pages/Groups';
+import GroupRoom from './pages/Grouproom';
+import EventDetails from './pages/EventDetails';
+import { LucideRoute } from 'lucide-react';
 
 function App() {
   const isAuthenticated = !!localStorage.getItem('token');
@@ -25,12 +29,13 @@ function App() {
         <Route element={isAuthenticated ? <Layout /> : <Navigate to="/login" />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/events" element={<Events />} />
-          <Route path="/groups" element={<div className="p-4">Groups Page Coming Soon</div>} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/chat" element={<Chat />} />
           <Route path= "/messages" element={<Messages />} />
           <Route path= "/materials" element={<Materials />} />
-
+          <Route path= "/groups" element={<Groups />} />
+          <Route path= "/groups/:id" element={<GroupRoom />} />
+          <Route path= "/events/:id" element={<EventDetails />} />
           
           
         </Route>

@@ -11,6 +11,7 @@ const authRoute = require("./routes/auth");
 const messageRoute = require("./routes/messages");
 const materialRoute = require("./routes/materials"); // 👈 ensure this file exists
 const groupRoute = require("./routes/groups");
+const eventRoute = require("./routes/events");
 
 dotenv.config();
 
@@ -48,6 +49,7 @@ app.use("/api/auth", authRoute);
 app.use("/api/messages", messageRoute);
 app.use("/api/materials", materialRoute); // 👈 This fixes the 404 error
 app.use("/api/groups", groupRoute);
+app.use("/api/events", eventRoute);
 // -------------------------------------------
 // 5. SOCKET.IO SETUP (Real-time Chat)
 // -------------------------------------------
@@ -59,15 +61,42 @@ const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
-  // console.log(`User Connected: ${socket.id}`); // Uncomment to debug
+  console.log(`User Connected: ${socket.id}`);
 
-  socket.on("send_message", (data) => {
-    // Broadcast message to everyone (simple version)
-    socket.broadcast.emit("receive_message", data);
+  // ... (Your existing socket code for global chat might be here) ...
+
+  // 👇 NEW: Study Group Chat Logic
+  socket.on("join_group", (groupId) => {
+    socket.join(groupId);
+    console.log(`User joined group: ${groupId}`);
   });
 
+  socket.on("send_group_message", async (data) => {
+    const { groupId, userId, text } = data;
+    
+    // 1. Save to Database (so it's there when you reload)
+    try {
+      const Group = require("./models/Group"); // Import inside to avoid top-level issues
+      const group = await Group.findById(groupId);
+      if (group) {
+        group.messages.push({ sender: userId, text });
+        await group.save();
+        
+        // 2. Populate sender info so frontend can show username/pic
+        const updatedGroup = await Group.findById(groupId).populate("messages.sender", "username profilePicture");
+        const newMessage = updatedGroup.messages[updatedGroup.messages.length - 1];
+
+        // 3. Send to everyone in the room
+        io.to(groupId).emit("receive_group_message", newMessage);
+      }
+    } catch (err) {
+      console.error("Error saving group message:", err);
+    }
+  });
+  // 👆 End New Section
+
   socket.on("disconnect", () => {
-    // console.log("User Disconnected", socket.id);
+    console.log("User Disconnected", socket.id);
   });
 });
 

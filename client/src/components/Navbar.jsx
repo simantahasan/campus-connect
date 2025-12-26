@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Home, User, LogOut, GraduationCap } from 'lucide-react';
+import { Home, User, LogOut, GraduationCap, Users } from 'lucide-react';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -40,6 +40,15 @@ const Navbar = () => {
             >
               <Home size={24} />
             </Link>
+
+          {/* Study Groups Link */}
+          <Link
+            to="/groups"
+            className={`p-2 rounded=lg transition ${isActive('/groups')}`}
+            title="Study Groups"
+          >
+              <Users size={24} />
+            </Link>    
             
             <Link 
               to="/profile" 

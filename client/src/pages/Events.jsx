@@ -1,209 +1,249 @@
-// client/src/pages/Events.jsx
-import React, { useState, useEffect } from 'react';
-import api from '../utils/api';
-import { Calendar, Plus, CheckCircle, Clock } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { Calendar, MapPin, Plus, User, Clock, CheckCircle } from "lucide-react";
 
-const Events = () => {
+export default function Events() {
   const [events, setEvents] = useState([]);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [newEvent, setNewEvent] = useState({ title: "", date: "", description: "" });
-  const [newTask, setNewTask] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
 
-  // 1. Fetch Events on Load
+  // 1. Form State (Make sure all fields exist here!)
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    description: "",
+    location: "", 
+    date: "",
+    time: ""
+  });
+
+  const userString = localStorage.getItem("user");
+  const user = userString ? JSON.parse(userString) : null;
+
   useEffect(() => {
     fetchEvents();
   }, []);
 
   const fetchEvents = async () => {
     try {
-      const { data } = await api.get('/events');
-      setEvents(data);
+      const res = await axios.get("http://localhost:5000/api/events");
+      setEvents(res.data);
     } catch (err) {
       console.error(err);
     }
   };
 
-  // 2. Create Event
-  const handleCreateEvent = async (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
-    try {
-      const { data } = await api.post('/events', { ...newEvent, createdBy: "User" });
-      setEvents([...events, data]);
-      setNewEvent({ title: "", date: "", description: "" });
-      toast.success("Event Created!");
-    } catch (err) {
-      toast.error("Failed to create event");
-    }
-  };
 
-  // 3. Add Task to Event
-  const handleAddTask = async (e) => {
-    e.preventDefault();
-    if (!selectedEvent) return;
+    // 1. Basic Validation
+    if (!user) {
+      alert("Please login first!");
+      return;
+    }
+    
+    if (!newEvent.title || !newEvent.location || !newEvent.date || !newEvent.time) {
+      alert("Please fill in all fields: Title, Location, Date, and Time.");
+      return;
+    }
+
+    // 2. Create Date Object safely
+    // Input date format is usually "YYYY-MM-DD" and time is "HH:MM"
+    const dateTimeString = `${newEvent.date}T${newEvent.time}`;
+    const fullDate = new Date(dateTimeString);
+
+    // 3. Check if Date is Valid
+    if (isNaN(fullDate.getTime())) {
+      alert("Invalid Date or Time selected. Please try again.");
+      return;
+    }
+
     try {
-      const { data } = await api.post(`/events/${selectedEvent._id}/tasks`, {
-        title: newTask,
-        assignedTo: "User"
+      // 4. Send Data
+      console.log("Sending Event:", { ...newEvent, date: fullDate }); // Debug log
+      
+      const res = await axios.post("http://localhost:5000/api/events", {
+        title: newEvent.title,
+        description: newEvent.description,
+        location: newEvent.location,
+        date: fullDate, // This is now guaranteed to be a valid Date object
+        organizer: user._id
       });
-      // Update local state to show new task immediately
-      const updatedEvent = { ...selectedEvent, tasks: [...selectedEvent.tasks, data] };
-      setEvents(events.map(ev => ev._id === selectedEvent._id ? updatedEvent : ev));
-      setSelectedEvent(updatedEvent);
-      setNewTask("");
-      toast.success("Task Added");
+
+      // 5. Success
+      setEvents([...events, res.data]);
+      setShowModal(false);
+      setNewEvent({ title: "", description: "", location: "", date: "", time: "" });
+      alert("Event Created Successfully!");
+
     } catch (err) {
-      toast.error("Failed to add task");
+      console.error("Server Error:", err.response?.data);
+      alert("Failed to create event: " + (err.response?.data?.message || err.message));
     }
   };
 
-  // 4. Move Task Status (Simple Toggle for now)
-  const toggleTaskStatus = async (taskId, currentStatus) => {
-    const newStatus = currentStatus === "Todo" ? "Done" : "Todo";
+  const handleJoin = async (eventId) => {
+    if (!user) return alert("Please login!");
     try {
-      await api.put(`/events/${selectedEvent._id}/tasks/${taskId}`, { status: newStatus });
-      
-      // Update UI manually
-      const updatedTasks = selectedEvent.tasks.map(t => 
-        t._id === taskId ? { ...t, status: newStatus } : t
-      );
-      const updatedEvent = { ...selectedEvent, tasks: updatedTasks };
-      
-      setEvents(events.map(ev => ev._id === selectedEvent._id ? updatedEvent : ev));
-      setSelectedEvent(updatedEvent);
+      await axios.put(`http://localhost:5000/api/events/${eventId}/join`, {
+        userId: user._id
+      });
+      fetchEvents(); // Refresh to show updated participant count
     } catch (err) {
-      toast.error("Could not update task");
+      console.error(err);
     }
   };
 
   return (
-    <div className="flex h-[calc(100vh-100px)] gap-6">
+    <div className="min-h-screen bg-gray-50 p-6 md:p-10">
       
-      {/* LEFT: Event List & Create */}
-      <div className="w-1/3 flex flex-col gap-6 overflow-y-auto pr-2">
-        {/* Create Form */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <Plus className="text-campus-red" size={20}/> New Event
-          </h3>
-          <form onSubmit={handleCreateEvent} className="space-y-3">
-            <input 
-              className="w-full p-2 border rounded focus:border-campus-red outline-none" 
-              placeholder="Event Title (e.g., Hackathon)"
-              value={newEvent.title}
-              onChange={e => setNewEvent({...newEvent, title: e.target.value})}
-            />
-            <input 
-              type="date"
-              className="w-full p-2 border rounded focus:border-campus-red outline-none" 
-              value={newEvent.date}
-              onChange={e => setNewEvent({...newEvent, date: e.target.value})}
-            />
-            <button className="w-full bg-campus-red text-white py-2 rounded hover:bg-red-800 transition">
-              Create Event
-            </button>
-          </form>
+      {/* HEADER */}
+      <div className="max-w-6xl mx-auto mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <Calendar className="text-campus-red" size={32} /> 
+            Campus Events
+          </h1>
+          <p className="text-gray-500 mt-2">Workshops, study marathons, and social gatherings.</p>
         </div>
-
-        {/* List */}
-        <div className="space-y-3">
-          {events.map(event => (
-            <div 
-              key={event._id}
-              onClick={() => setSelectedEvent(event)}
-              className={`p-4 rounded-xl cursor-pointer border transition-all ${selectedEvent?._id === event._id ? 'border-campus-red bg-red-50' : 'bg-white border-gray-100 hover:shadow-md'}`}
-            >
-              <div className="flex justify-between items-start">
-                <h4 className="font-bold text-gray-800">{event.title}</h4>
-                <span className="text-xs font-semibold bg-gray-200 px-2 py-1 rounded text-gray-600">
-                  {new Date(event.date).toLocaleDateString()}
-                </span>
-              </div>
-              <p className="text-sm text-gray-500 mt-1">{event.tasks?.length || 0} Tasks</p>
-            </div>
-          ))}
-        </div>
+        <button 
+          onClick={() => setShowModal(true)}
+          className="bg-campus-red text-white px-6 py-3 rounded-xl font-medium hover:bg-red-700 transition flex items-center gap-2 shadow-sm"
+        >
+          <Plus size={20} /> Create Event
+        </button>
       </div>
 
-      {/* RIGHT: Task Board (Kanban Style) */}
-      <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col">
-        {selectedEvent ? (
-          <>
-            <div className="flex justify-between items-center mb-6 border-b pb-4">
-              <div>
-                <h2 className="text-2xl font-bold text-campus-red">{selectedEvent.title}</h2>
-                <p className="text-gray-500">Manage tasks for this event</p>
+      {/* EVENTS GRID */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {events.map((ev) => {
+          const isJoined = ev.participants.some(p => p === user?._id || p._id === user?._id);
+          const eventDate = new Date(ev.date);
+          
+          return (
+            <div key={ev._id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition flex flex-col">
+              <div className="bg-red-50 p-4 border-b border-red-100 flex justify-between items-center">
+                <div className="text-campus-red font-bold flex flex-col leading-tight">
+                  <span className="text-xs uppercase tracking-wide">{eventDate.toLocaleString('default', { month: 'short' })}</span>
+                  <span className="text-2xl">{eventDate.getDate()}</span>
+                </div>
+                {isJoined && (
+                  <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full flex items-center gap-1 font-medium">
+                    <CheckCircle size={12}/> Going
+                  </span>
+                )}
               </div>
-              <span className="bg-campus-red/10 text-campus-red px-3 py-1 rounded-full text-sm font-semibold">
-                {selectedEvent.participants.length} Participants
-              </span>
+
+              <div className="p-5 flex-1 flex flex-col">
+                <h3 className="font-bold text-lg text-gray-800 mb-2 truncate">{ev.title}</h3>
+                <p className="text-gray-500 text-sm line-clamp-2 mb-4 flex-1">{ev.description}</p>
+                
+                <div className="space-y-2 text-sm text-gray-600 mb-6">
+                  <div className="flex items-center gap-2">
+                    <Clock size={16} className="text-gray-400"/> 
+                    {eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin size={16} className="text-gray-400"/> 
+                    {ev.location}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mt-auto">
+                  <button 
+                    onClick={() => handleJoin(ev._id)}
+                    className={`flex-1 py-2 rounded-lg font-medium text-sm border transition
+                      ${isJoined 
+                        ? "border-gray-300 text-gray-600 hover:bg-gray-50" 
+                        : "bg-campus-red text-white border-transparent hover:bg-red-700"
+                      }`}
+                  >
+                    {isJoined ? "Leave" : "Join"}
+                  </button>
+                  <button 
+                    onClick={() => navigate(`/events/${ev._id}`)}
+                    className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium text-sm hover:bg-gray-200 transition"
+                  >
+                    Details
+                  </button>
+                </div>
+              </div>
             </div>
+          );
+        })}
+      </div>
 
-            {/* Task Input */}
-            <form onSubmit={handleAddTask} className="flex gap-2 mb-6">
-              <input 
-                className="flex-1 p-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-campus-red outline-none"
-                placeholder="Add a new task..."
-                value={newTask}
-                onChange={e => setNewTask(e.target.value)}
-              />
-              <button className="bg-gray-900 text-white px-6 rounded-lg font-medium">Add</button>
-            </form>
-
-            {/* Task Lists */}
-            <div className="flex-1 grid grid-cols-2 gap-6 overflow-hidden">
+      {/* CREATE MODAL */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-4">Host an Event</h2>
+            <form onSubmit={handleCreate} className="space-y-4">
               
-              {/* TODO Column */}
-              <div className="bg-gray-50 p-4 rounded-xl overflow-y-auto">
-                <h4 className="font-bold text-gray-500 mb-4 flex items-center gap-2">
-                  <Clock size={18}/> To Do
-                </h4>
-                <div className="space-y-3">
-                  {selectedEvent.tasks?.filter(t => t.status === 'Todo').map(task => (
-                    <div key={task._id} className="bg-white p-3 rounded shadow-sm border border-gray-100 group">
-                      <p className="font-medium text-gray-800">{task.title}</p>
-                      <button 
-                        onClick={() => toggleTaskStatus(task._id, 'Todo')}
-                        className="text-xs text-blue-600 mt-2 hover:underline"
-                      >
-                        Mark as Done →
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* Title Input */}
+              <input 
+                placeholder="Event Title" 
+                className="w-full p-3 border rounded-lg"
+                value={newEvent.title}
+                onChange={e => setNewEvent({...newEvent, title: e.target.value})}
+                required
+              />
+              
+              {/* Description Input */}
+              <textarea 
+                placeholder="Description" 
+                className="w-full p-3 border rounded-lg h-24 resize-none"
+                value={newEvent.description}
+                onChange={e => setNewEvent({...newEvent, description: e.target.value})}
+              />
+              
+              {/* Location Input - CRITICAL FOR FIXING YOUR ERROR */}
+              <input 
+                placeholder="Location (e.g. Library Room 304)" 
+                className="w-full p-3 border rounded-lg"
+                value={newEvent.location}
+                onChange={e => setNewEvent({...newEvent, location: e.target.value})}
+                required
+              />
 
-              {/* DONE Column */}
-              <div className="bg-green-50/50 p-4 rounded-xl overflow-y-auto">
-                <h4 className="font-bold text-green-600 mb-4 flex items-center gap-2">
-                  <CheckCircle size={18}/> Completed
-                </h4>
-                <div className="space-y-3">
-                  {selectedEvent.tasks?.filter(t => t.status === 'Done').map(task => (
-                    <div key={task._id} className="bg-white p-3 rounded shadow-sm border border-green-100 opacity-70">
-                      <p className="font-medium text-gray-500 line-through">{task.title}</p>
-                      <button 
-                        onClick={() => toggleTaskStatus(task._id, 'Done')}
-                        className="text-xs text-gray-400 mt-2 hover:underline"
-                      >
-                        ← Move back
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              {/* Date & Time */}
+              <div className="flex gap-4">
+                <input 
+                  type="date" 
+                  className="w-full p-3 border rounded-lg"
+                  value={newEvent.date}
+                  onChange={e => setNewEvent({...newEvent, date: e.target.value})}
+                  required
+                />
+                <input 
+                  type="time" 
+                  className="w-full p-3 border rounded-lg"
+                  value={newEvent.time}
+                  onChange={e => setNewEvent({...newEvent, time: e.target.value})}
+                  required
+                />
               </div>
-
-            </div>
-          </>
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-gray-400">
-            <Calendar size={64} className="mb-4 opacity-20"/>
-            <p className="text-lg">Select an event to view the task board</p>
+              
+              <div className="flex gap-3 mt-6">
+                <button 
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 py-3 bg-campus-red text-white rounded-lg font-medium hover:bg-red-700"
+                >
+                  Create Event
+                </button>
+              </div>
+            </form>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
     </div>
   );
-};
-
-export default Events;
+}

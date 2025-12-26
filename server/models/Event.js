@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const EventSchema = new mongoose.Schema({
   title: { type: String, required: true },
+  description: { type: String }, // 👈 ADDED THIS!
   date: { type: Date, required: true },
   location: { type: String, required: true },
   organizer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -11,7 +12,7 @@ const EventSchema = new mongoose.Schema({
   
   // Feature 13: Jira-style Tasks (Drag and Drop data)
   tasks: [{
-    title: String,
+    title: { type: String, required: true }, // Added required for better data quality
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     status: { 
       type: String, 
