@@ -10,6 +10,7 @@ const { Server } = require("socket.io");
 const authRoute = require("./routes/auth");
 const messageRoute = require("./routes/messages");
 const materialRoute = require("./routes/materials"); // 👈 ensure this file exists
+const groupRoute = require("./routes/groups");
 
 dotenv.config();
 
@@ -46,7 +47,7 @@ mongoose.connect(process.env.MONGO_URL)
 app.use("/api/auth", authRoute);
 app.use("/api/messages", messageRoute);
 app.use("/api/materials", materialRoute); // 👈 This fixes the 404 error
-
+app.use("/api/groups", groupRoute);
 // -------------------------------------------
 // 5. SOCKET.IO SETUP (Real-time Chat)
 // -------------------------------------------
