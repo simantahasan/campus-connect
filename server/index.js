@@ -12,6 +12,7 @@ const messageRoute = require("./routes/messages");
 const materialRoute = require("./routes/materials"); // 👈 ensure this file exists
 const groupRoute = require("./routes/groups");
 const eventRoute = require("./routes/events");
+const notificationRoute = require("./routes/notifications");
 
 dotenv.config();
 
@@ -50,6 +51,7 @@ app.use("/api/messages", messageRoute);
 app.use("/api/materials", materialRoute); // 👈 This fixes the 404 error
 app.use("/api/groups", groupRoute);
 app.use("/api/events", eventRoute);
+app.use("/api/notifications", notificationRoute);
 // -------------------------------------------
 // 5. SOCKET.IO SETUP (Real-time Chat)
 // -------------------------------------------

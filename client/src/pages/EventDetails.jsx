@@ -1,11 +1,18 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom"; // 👈 Added useNavigate
 import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Calendar, MapPin, User, CheckCircle, Plus, ArrowLeft, XCircle } from "lucide-react";
+import { 
+  Calendar, MapPin, User, CheckCircle, Plus, 
+  ArrowLeft, XCircle, Trash2 
+} from "lucide-react"; // 👈 Ensure Trash2 is here
+
+// 👇 IMPORTANT: Use your Network IP
+const API_URL = "http://192.168.1.6:5000";
 
 export default function EventDetails() {
   const { id } = useParams();
+  const navigate = useNavigate(); // 👈 Initialize Navigation
   const [event, setEvent] = useState(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   
@@ -18,7 +25,7 @@ export default function EventDetails() {
 
   const fetchEvent = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/events/${id}`);
+      const res = await axios.get(`${API_URL}/api/events/${id}`);
       setEvent(res.data);
     } catch (err) {
       console.error(err);
@@ -33,34 +40,18 @@ export default function EventDetails() {
     if (!username) return;
 
     try {
-      // First, we need to find the User ID from the username (this usually requires a specific route, 
-      // but for now we will assume your add_member route in Groups handles this logic or we reuse the group logic.
-      // SIMPLER WAY: Let's assume you implemented the "Find User" logic in the backend route I gave you earlier)
+      // Logic to find user - for now we just show alert as per your previous code
+      // If you implemented the user search route, we could do:
+      const userRes = await axios.get(`${API_URL}/api/users?username=${username}`); 
       
-      // We will reuse the "add_member" logic pattern. 
-      // *Note: We need to update the backend route to accept "username" if it currently only accepts ID.
-      // For this to work efficiently, we usually search for the user first.
-      
-      // Let's try sending the username to the backend endpoint we made earlier.
-      // Wait, the backend route `manage_participant` expected an ID. 
-      // Let's do a quick lookup first:
-      const userRes = await axios.get(`http://localhost:5000/api/users?username=${username}`); 
-      // *Note: You might need to add a simple "Find User By Username" route if you don't have one.
-      // IF YOU DON'T HAVE THAT ROUTE, this part is tricky.
-      
-      // ALTERNATIVE: Just tell the user to Join via the Dashboard.
-      // BUT, to fulfill your request, let's assume we can search or we just alert for now:
-      alert("To add a user, please ask them to click 'Join' on the dashboard! (Or we can build a User Search feature next).");
-      
+      // If found, add them directly
+      await axios.put(`${API_URL}/api/events/${id}/join`, { userId: userRes.data._id });
+      alert(`User ${username} added!`);
+      fetchEvent();
     } catch (err) {
       alert("User not found or error adding.");
     }
   };
-  
-  // *REAL IMPLEMENTATION FOR ADDING:*
-  // To make "Add by Username" work, we need to find the user's ID first.
-  // Since we haven't built a "Search User" API yet, let's stick to "Removing" for now,
-  // and users can "Join" themselves from the dashboard.
 
   // 2. REMOVE PARTICIPANT (Organizer Only)
   const handleRemoveParticipant = async (participantId, participantName) => {
@@ -68,13 +59,27 @@ export default function EventDetails() {
     if (!window.confirm(`Remove ${participantName} from this event?`)) return;
 
     try {
-      await axios.put(`http://localhost:5000/api/events/${id}/manage_participant`, {
+      await axios.put(`${API_URL}/api/events/${id}/manage_participant`, {
         action: "remove",
         userId: participantId
       });
-      fetchEvent(); // Refresh list
+      fetchEvent(); 
     } catch (err) {
       alert("Error removing user");
+    }
+  };
+
+  // 👇 3. DELETE EVENT (Organizer Only) - NEW!
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this event? This cannot be undone.")) return;
+
+    try {
+      await axios.delete(`${API_URL}/api/events/${id}`);
+      alert("Event deleted successfully!");
+      navigate("/events"); // Redirect to main list
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete event");
     }
   };
 
@@ -82,7 +87,7 @@ export default function EventDetails() {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
     try {
-      await axios.post(`http://localhost:5000/api/events/${id}/tasks`, { title: newTaskTitle });
+      await axios.post(`${API_URL}/api/events/${id}/tasks`, { title: newTaskTitle });
       setNewTaskTitle("");
       fetchEvent();
     } catch (err) {
@@ -96,20 +101,16 @@ export default function EventDetails() {
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
     const updatedEvent = { ...event };
-    const taskIndex = updatedEvent.tasks.findIndex(t => t._id === draggableId);
-    if (taskIndex > -1) {
-        updatedEvent.tasks[taskIndex].status = destination.droppableId;
-        setEvent(updatedEvent);
-    }
-
+    
     try {
-      await axios.put(`http://localhost:5000/api/events/${id}/tasks/${draggableId}`, {
+      await axios.put(`${API_URL}/api/events/${id}/tasks/${draggableId}`, {
         status: destination.droppableId,
         assignedTo: user._id
       });
+      fetchEvent();
     } catch (err) {
       console.error(err);
-      fetchEvent();
+      fetchEvent(); 
     }
   };
 
@@ -145,7 +146,7 @@ export default function EventDetails() {
                     className={`w-10 h-10 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center overflow-hidden relative group cursor-pointer`} 
                     title={p.username}
                   >
-                    {p.profilePicture ? <img src={p.profilePicture} className="w-full h-full object-cover"/> : <span className="text-xs font-bold">{p.username[0]}</span>}
+                    {p.profilePicture ? <img src={p.profilePicture} className="w-full h-full object-cover" alt={p.username}/> : <span className="text-xs font-bold">{p.username[0]}</span>}
                     
                     {/* Hover effect for organizer to remove */}
                     {isOrganizer && p._id !== user._id && (
@@ -156,14 +157,25 @@ export default function EventDetails() {
                   </div>
                 ))}
                 
-                {/* Invite Button (Just explains how to join for now) */}
+                {/* Invite Button */}
                 {isOrganizer && (
                   <button 
-                    onClick={() => alert("Tell your friends to find this event on the Dashboard and click 'Join'!")} 
+                    onClick={handleAddParticipant} 
                     className="w-10 h-10 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-campus-red hover:text-white transition" 
                     title="Invite Members"
                   >
                     <Plus size={16} />
+                  </button>
+                )}
+
+                {/* 👇 NEW DELETE BUTTON (Only visible to Organizer) */}
+                {isOrganizer && (
+                  <button 
+                    onClick={handleDelete}
+                    className="ml-2 w-10 h-10 rounded-full border-2 border-white bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition shadow-sm"
+                    title="Delete Event"
+                  >
+                    <Trash2 size={16} />
                   </button>
                 )}
               </div>

@@ -1,7 +1,9 @@
 import React from 'react';
 import { Outlet, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
-// 👇 1. Added 'BookOpen' to imports
 import { Home, Calendar, Users, LogOut, MessageCircle, User, BookOpen } from 'lucide-react';
+
+// 👇 1. IMPORT THE BELL COMPONENT
+import NotificationBell from './NotificationBell';
 
 const Layout = () => {
   const location = useLocation();
@@ -53,7 +55,11 @@ const Layout = () => {
             />
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+             
+             {/* 👇 2. ADDED NOTIFICATION BELL HERE 👇 */}
+             <NotificationBell />
+
              {/* Profile Link */}
              <Link to="/profile" className="flex items-center gap-2 hover:bg-white/20 px-3 py-1 rounded-full transition">
                 <span className="font-medium hidden sm:block">
@@ -84,10 +90,7 @@ const Layout = () => {
             <SidebarItem to="/" icon={<Home size={20}/>} label="Home Feed" active={location.pathname === '/'} />
             <SidebarItem to="/events" icon={<Calendar size={20}/>} label="Events & Tasks" active={location.pathname === '/events'} />
             <SidebarItem to="/groups" icon={<Users size={20}/>} label="Study Groups" active={location.pathname === '/groups'} />
-            
-            {/* 👇 2. ADDED STUDY MATERIALS LINK HERE 👇 */}
             <SidebarItem to="/materials" icon={<BookOpen size={20}/>} label="Study Materials" active={location.pathname === '/materials'} />
-
             <SidebarItem to="/messages" icon={<MessageCircle size={20}/>} label="Messages" active={location.pathname === '/messages'} />
             <SidebarItem to="/profile" icon={<User size={20}/>} label="My Profile" active={location.pathname === '/profile'} />
           </aside>
