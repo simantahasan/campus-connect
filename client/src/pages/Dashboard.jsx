@@ -1,66 +1,75 @@
-// client/src/pages/Dashboard.jsx
 import React, { useEffect, useState } from 'react';
-import api from '../utils/api';
-import { MessageSquare, ThumbsUp, User } from 'lucide-react';
+import api from '../utils/api'; // 👈 Uses your new "Pro Tip" API utility
+import { Calendar, MapPin, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
-  const [posts, setPosts] = useState([]);
-  const [newPost, setNewPost] = useState("");
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch Posts from Backend
   useEffect(() => {
-    const fetchPosts = async () => {
+    const fetchEvents = async () => {
       try {
-        const { data } = await api.get('/posts?new=true');
-        setPosts(data);
+        // No need for ${API_URL} here, api.js handles it!
+        const { data } = await api.get('/events');
+        setEvents(data);
       } catch (err) {
-        console.error("Failed to load posts", err);
+        console.error("Failed to load events", err);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchPosts();
+    fetchEvents();
   }, []);
 
+  if (loading) return <div className="p-10 text-center text-gray-500">Loading campus events...</div>;
+
   return (
-    <div className="space-y-6">
-      {/* Create Post Input */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex gap-4">
-        <div className="w-10 h-10 rounded-full bg-campus-red flex items-center justify-center text-white font-bold">
-          <User size={20} />
-        </div>
-        <input 
-          type="text" 
-          placeholder="What's happening on campus?" 
-          className="flex-1 bg-gray-100 rounded-full px-4 focus:outline-none focus:ring-2 focus:ring-campus-red"
-          value={newPost}
-          onChange={(e) => setNewPost(e.target.value)}
-        />
-        <button className="bg-campus-red text-white px-6 py-2 rounded-lg font-medium hover:bg-red-800">
-          Post
-        </button>
+    <div className="max-w-4xl mx-auto space-y-6 p-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-800">Campus Events</h1>
+        <Link 
+          to="/create-event" 
+          className="bg-campus-red text-white px-4 py-2 rounded-lg font-medium hover:bg-red-800 transition"
+        >
+          + New Event
+        </Link>
       </div>
 
-      {/* Posts Feed */}
-      {posts.length === 0 ? (
-        <p className="text-center text-gray-500 mt-10">No posts yet. Be the first!</p>
+      {events.length === 0 ? (
+        <div className="bg-white p-10 rounded-xl border border-dashed border-gray-300 text-center">
+          <p className="text-gray-500">No events found. Start by creating one!</p>
+        </div>
       ) : (
-        posts.map((post) => (
-          <div key={post._id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
-                U
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-900">Student</h4>
-                <p className="text-xs text-gray-500">Just now</p>
+        <div className="grid gap-4">
+          {events.map((event) => (
+            <div key={event._id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-campus-red transition-all">
+              <div className="flex flex-col md:flex-row justify-between gap-4">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-gray-900">{event.title}</h3>
+                  <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <Calendar size={16} className="text-campus-red" />
+                      {new Date(event.date).toLocaleDateString()}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MapPin size={16} className="text-campus-red" />
+                      {event.location}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-end">
+                  <Link 
+                    to={`/events/${event._id}`} 
+                    className="flex items-center gap-2 text-campus-red font-semibold hover:underline"
+                  >
+                    View Details <ArrowRight size={18} />
+                  </Link>
+                </div>
               </div>
             </div>
-            <p className="text-gray-800 mb-4">{post.content}</p>
-            <div className="flex gap-6 text-gray-500">
-              <button className="flex items-center gap-2 hover:text-campus-red"><ThumbsUp size={18}/> Like</button>
-              <button className="flex items-center gap-2 hover:text-campus-red"><MessageSquare size={18}/> Comment</button>
-            </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
     </div>
   );

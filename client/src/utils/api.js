@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { API_URL } from '../config'; // 👈 Import the smart URL from your config
 
-// Create an Axios instance pointing to your running server
+// Create an Axios instance using the dynamic API_URL
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api', // This connects React to Node
+  baseURL: `${API_URL}/api`, // This now switches between localhost and IP automatically
 });
 
 // Automatically add the Token to requests if logged in

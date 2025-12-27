@@ -1,18 +1,15 @@
 import { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom"; // 👈 Added useNavigate
-import axios from "axios";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import api from "../utils/api"; // 👈 Now using your custom API utility
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { 
   Calendar, MapPin, User, CheckCircle, Plus, 
   ArrowLeft, XCircle, Trash2 
-} from "lucide-react"; // 👈 Ensure Trash2 is here
-
-// 👇 IMPORTANT: Use your Network IP
-const API_URL = "http://192.168.1.6:5000";
+} from "lucide-react";
 
 export default function EventDetails() {
   const { id } = useParams();
-  const navigate = useNavigate(); // 👈 Initialize Navigation
+  const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   
@@ -25,7 +22,8 @@ export default function EventDetails() {
 
   const fetchEvent = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/events/${id}`);
+      // 👈 Simplified URL: base is handled by api.js
+      const res = await api.get(`/events/${id}`);
       setEvent(res.data);
     } catch (err) {
       console.error(err);
@@ -34,18 +32,14 @@ export default function EventDetails() {
 
   const isOrganizer = event?.organizer?._id === user?._id;
 
-  // 1. ADD PARTICIPANT (Organizer Only)
+  // 1. ADD PARTICIPANT
   const handleAddParticipant = async () => {
     const username = prompt("Enter the username to invite:");
     if (!username) return;
 
     try {
-      // Logic to find user - for now we just show alert as per your previous code
-      // If you implemented the user search route, we could do:
-      const userRes = await axios.get(`${API_URL}/api/users?username=${username}`); 
-      
-      // If found, add them directly
-      await axios.put(`${API_URL}/api/events/${id}/join`, { userId: userRes.data._id });
+      const userRes = await api.get(`/users?username=${username}`); 
+      await api.put(`/events/${id}/join`, { userId: userRes.data._id });
       alert(`User ${username} added!`);
       fetchEvent();
     } catch (err) {
@@ -53,13 +47,13 @@ export default function EventDetails() {
     }
   };
 
-  // 2. REMOVE PARTICIPANT (Organizer Only)
+  // 2. REMOVE PARTICIPANT
   const handleRemoveParticipant = async (participantId, participantName) => {
     if (!isOrganizer) return;
     if (!window.confirm(`Remove ${participantName} from this event?`)) return;
 
     try {
-      await axios.put(`${API_URL}/api/events/${id}/manage_participant`, {
+      await api.put(`/events/${id}/manage_participant`, {
         action: "remove",
         userId: participantId
       });
@@ -69,14 +63,14 @@ export default function EventDetails() {
     }
   };
 
-  // 👇 3. DELETE EVENT (Organizer Only) - NEW!
+  // 3. DELETE EVENT
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this event? This cannot be undone.")) return;
+    if (!window.confirm("Are you sure you want to delete this event?")) return;
 
     try {
-      await axios.delete(`${API_URL}/api/events/${id}`);
+      await api.delete(`/events/${id}`);
       alert("Event deleted successfully!");
-      navigate("/events"); // Redirect to main list
+      navigate("/events"); 
     } catch (err) {
       console.error(err);
       alert("Failed to delete event");
@@ -87,7 +81,7 @@ export default function EventDetails() {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
     try {
-      await axios.post(`${API_URL}/api/events/${id}/tasks`, { title: newTaskTitle });
+      await api.post(`/events/${id}/tasks`, { title: newTaskTitle });
       setNewTaskTitle("");
       fetchEvent();
     } catch (err) {
@@ -100,10 +94,8 @@ export default function EventDetails() {
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-    const updatedEvent = { ...event };
-    
     try {
-      await axios.put(`${API_URL}/api/events/${id}/tasks/${draggableId}`, {
+      await api.put(`/events/${id}/tasks/${draggableId}`, {
         status: destination.droppableId,
         assignedTo: user._id
       });
@@ -114,11 +106,12 @@ export default function EventDetails() {
     }
   };
 
-  if (!event) return <div className="p-10 text-center">Loading...</div>;
+  if (!event) return <div className="p-10 text-center text-gray-500">Loading details...</div>;
   const getTasksByStatus = (status) => event.tasks?.filter(t => t.status === status) || [];
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header and Content remain same as your previous design */}
       <div className="bg-white border-b px-6 py-6 shadow-sm">
         <div className="max-w-6xl mx-auto">
           <Link to="/events" className="flex items-center text-gray-500 hover:text-campus-red mb-4 w-fit">
@@ -135,7 +128,6 @@ export default function EventDetails() {
               </div>
             </div>
             
-            {/* PARTICIPANTS SECTION */}
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-400 font-medium mr-2">Team:</span>
               <div className="flex -space-x-2">
@@ -147,8 +139,6 @@ export default function EventDetails() {
                     title={p.username}
                   >
                     {p.profilePicture ? <img src={p.profilePicture} className="w-full h-full object-cover" alt={p.username}/> : <span className="text-xs font-bold">{p.username[0]}</span>}
-                    
-                    {/* Hover effect for organizer to remove */}
                     {isOrganizer && p._id !== user._id && (
                       <div className="absolute inset-0 bg-red-500/80 hidden group-hover:flex items-center justify-center text-white">
                         <XCircle size={16} />
@@ -157,26 +147,15 @@ export default function EventDetails() {
                   </div>
                 ))}
                 
-                {/* Invite Button */}
                 {isOrganizer && (
-                  <button 
-                    onClick={handleAddParticipant} 
-                    className="w-10 h-10 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-campus-red hover:text-white transition" 
-                    title="Invite Members"
-                  >
-                    <Plus size={16} />
-                  </button>
-                )}
-
-                {/* 👇 NEW DELETE BUTTON (Only visible to Organizer) */}
-                {isOrganizer && (
-                  <button 
-                    onClick={handleDelete}
-                    className="ml-2 w-10 h-10 rounded-full border-2 border-white bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition shadow-sm"
-                    title="Delete Event"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <>
+                    <button onClick={handleAddParticipant} className="w-10 h-10 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-campus-red hover:text-white transition" title="Invite Members">
+                      <Plus size={16} />
+                    </button>
+                    <button onClick={handleDelete} className="ml-2 w-10 h-10 rounded-full border-2 border-white bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition shadow-sm" title="Delete Event">
+                      <Trash2 size={16} />
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -184,15 +163,11 @@ export default function EventDetails() {
         </div>
       </div>
 
+      {/* Task Board */}
       <div className="flex-1 p-6 overflow-x-auto">
         <div className="max-w-6xl mx-auto h-full flex flex-col">
           <form onSubmit={handleAddTask} className="mb-6 flex gap-2 max-w-lg">
-            <input 
-              value={newTaskTitle}
-              onChange={(e) => setNewTaskTitle(e.target.value)}
-              placeholder="Add a new task..." 
-              className="flex-1 p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 outline-none"
-            />
+            <input value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Add a new task..." className="flex-1 p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 outline-none" />
             <button type="submit" className="bg-campus-red text-white px-4 rounded-lg hover:bg-red-700 transition">Add</button>
           </form>
 
@@ -209,6 +184,7 @@ export default function EventDetails() {
   );
 }
 
+// Keep TaskColumn function exactly as it was
 function TaskColumn({ title, status, tasks, icon }) {
   return (
     <div className="bg-gray-100 rounded-xl p-4 min-h-[500px] flex flex-col">
