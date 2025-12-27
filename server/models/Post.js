@@ -21,4 +21,4 @@ const PostSchema = new mongoose.Schema({
   flagReason: { type: String } // e.g., "Hate Speech"
 }, { timestamps: true });
 
-module.exports = mongoose.model('Post', PostSchema);
+module.exports = mongoose.models.Post || mongoose.model('Post', PostSchema);
