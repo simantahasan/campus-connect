@@ -12,7 +12,7 @@ import Chat from './pages/Chat';
 import Messages from './pages/Messages';
 import Materials from './pages/Materials';
 import Groups from './pages/Groups';
-import GroupRoom from './pages/Grouproom';
+import GroupRoom from './pages/GroupRoom';
 import EventDetails from './pages/EventDetails';
 import { LucideRoute } from 'lucide-react';
 
