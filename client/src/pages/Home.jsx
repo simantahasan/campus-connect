@@ -1,6 +1,5 @@
 import React from 'react';
 const Home = () => {
-  // Dummy data for now - we will connect this to database later
   const posts = [
     { id: 1, author: "BUCC", content: "Registration for the Hackathon ends tonight! Don't miss out.", time: "2h ago" },
     { id: 2, author: "Sadia Khan", content: "Does anyone have the notes for MAT110?", time: "5h ago" },
