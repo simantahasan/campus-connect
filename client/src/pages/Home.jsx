@@ -1,5 +1,4 @@
 import React from 'react';
-
 const Home = () => {
   // Dummy data for now - we will connect this to database later
   const posts = [
